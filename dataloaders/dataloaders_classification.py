@@ -254,6 +254,6 @@ def get_dataloaders_hashtags(train_path, val_path, test_path, batch_size, model)
     return train_loader, val_loader, test_loader
 
 if __name__ == "__main__":
-    save_folder = r'D:\1.Project\Master\HashTation-main\HashTation-main\data_generation_all'
-    data = OriginTweetDataset(r'D:\1.Project\Master\HashTation-main\HashTation-main\data\tweeteval-processed-full\emoji\val.csv')
-    data.parse_hashtags_to_new_files(r'D:\1.Project\Master\HashTation-main\HashTation-main\data\tweeteval-processed-full', save_folder)
+    save_folder = 'data/tweeteval-processed-full/'
+    data = OriginTweetDataset('data/tweeteval-processed-full/emoji/val.csv')
+    data.parse_hashtags_to_new_files(r'data/tweeteval-processed-full', save_folder)
