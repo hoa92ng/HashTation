@@ -22,9 +22,9 @@ def main(args):
         bart_tokenizer = None
 
     # Load data
-    train_path = f"tweeteval-hashtags/{args.dataset}/train.csv"
-    val_path = f"tweeteval-hashtags/{args.dataset}/val.csv"
-    test_path = f"tweeteval-hashtags/{args.dataset}/test.csv"
+    train_path = f"data/tweeteval-processed-gen/tweeteval-processed-full/{args.dataset}/train.csv"
+    val_path = f"data/tweeteval-processed-gen/tweeteval-processed-full/{args.dataset}/val.csv"
+    test_path = f"data/tweeteval-processed-gen/tweeteval-processed-full/{args.dataset}/test.csv"
     train_loader, val_loader, test_loader = get_dataloaders_hashtags(train_path, val_path, test_path, args.batch_size, args.model)
 
     # Initialize models, optimizer, loss
@@ -112,10 +112,10 @@ def main(args):
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, required=True, choices=["emoji", "emotion", "hate", "irony", "offensive", "sentiment", "stance", "unified", "all"])
-    parser.add_argument('--model', type=str, default='kp-times', choices=["bart-base", "bart-large", "kp-times"])
+    parser.add_argument('--model', type=str, default='bart-base', choices=["bart-base", "bart-large", "kp-times"])
 
-    parser.add_argument('--batch_size', default=4, type=int)
-    parser.add_argument('--n_epochs', default=10, type=int)
+    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--n_epochs', default=5, type=int)
     parser.add_argument('--lr', default=1e-5, type=float)
     parser.add_argument('--logging', action='store_true')
     parser.add_argument('--save_path', type=str, default="none")
@@ -126,7 +126,7 @@ if __name__=="__main__":
     parser.add_argument('--decoder_min_length', default=1, type=int)
     parser.add_argument('--no_repeat_ngram_size', default=3, type=int)
 
-    parser.add_argument('--tam_module', action='store_true')
+    parser.add_argument('--tam_module', action='store_true', default=True)
 
     args = parser.parse_args()
     set_logger(args.logging)    

@@ -220,7 +220,7 @@ class HashtagDataset(Dataset):
         return {"tweets": self.tweets[idx], "labels": self.labels[idx], "hashtags": self.hashtags[idx]}
 
 def batch_bert_tokenize_hashtags(dataset_batch, tokenizer): 
-    tokenized_inputs = tokenizer(dataset_batch["new_text"], max_length=128, padding="max_length", truncation=True, return_tensors='pt')
+    tokenized_inputs = tokenizer(dataset_batch["text"], max_length=128, padding="max_length", truncation=True, return_tensors='pt')
     dataset_batch['input_ids'] = tokenized_inputs['input_ids'][0]
     dataset_batch['attention_mask'] = tokenized_inputs['attention_mask'][0]
     # need to specify text_target
