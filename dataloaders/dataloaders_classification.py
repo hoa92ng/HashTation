@@ -4,6 +4,94 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer
 from sklearn.model_selection import train_test_split
 import datasets
+from glob import glob
+import os
+
+class OriginTweetDataset(Dataset):
+    def __init__(self, data_path):
+        self.df = pd.read_csv(data_path, lineterminator='\n')
+
+    def parse_hashtags(self):
+        has_hashtags = []
+        list_hashtags = []
+        text_no_hastags = []
+        for s in self.df['text'].tolist():
+            print(s)
+            hashtag_cnt = s.count('#')
+            hashtags = ''
+            new_text = s
+            arrs = s.split()
+            if hashtag_cnt:
+                hashtags = ' '.join([h for h in arrs if '#' in h])
+                # process text with hashtag → no hashtag
+                if hashtag_cnt >= len(arrs):
+                    new_text = s.replace('#','')  
+                else:
+                    while('#' in arrs[len(arrs) - 1]):
+                        arrs = arrs[:-1]
+                    new_text = ' '.join(arrs).replace('#','')   
+            text_no_hastags.append(new_text)  
+            list_hashtags.append(hashtags)
+            has_hashtags.append(hashtag_cnt)
+        self.df['hashtag_cnt'] = has_hashtags
+        self.df['Generated_Hashtags'] = list_hashtags
+        self.df['new_text'] = text_no_hastags
+        print(self.df.head(10))
+
+    def parse_hashtags_to_new_files(self, folder_path, save_folder_path, with_hastags=True):
+        types = ('test', 'train', 'val')
+        folders = glob(os.path.join(folder_path, '*'))
+        root_folder_name = os.path.basename(folder_path)
+        os.makedirs(os.path.join(save_folder_path, root_folder_name), exist_ok=True)
+        for folder in folders:
+            folder_name = os.path.basename(folder)
+            os.makedirs(os.path.join(save_folder_path, root_folder_name, folder_name), exist_ok=True)
+            for type in types:
+                file_name = os.path.join(folder, f'{type}.csv')
+                print(file_name)
+                df = pd.read_csv(file_name, lineterminator='\n')
+                has_hashtags = []
+                list_hashtags = []
+                text_no_hastags = []
+                for s in df['text'].tolist():            
+                    s = s.replace('# ', '#')
+                    hashtag_cnt = s.count('#')
+                    if s.endswith('#'): hashtag_cnt=0
+                    hashtags = ''
+                    new_text = s
+                    arrs = s.split()
+                    if hashtag_cnt:
+                        hashtags = ','.join([h.replace('#', '') for h in arrs if '#' in h])
+                        # process text with hashtag → no hashtag
+                        if hashtag_cnt >= len(arrs):
+                            new_text = s.replace('#','')  
+                        else:
+                            while('#' in arrs[len(arrs) - 1]):
+                                arrs = arrs[:-1]
+                            new_text = ' '.join(arrs).replace('#','')
+                    text_no_hastags.append(new_text)  
+                    list_hashtags.append(hashtags)
+                    has_hashtags.append(hashtag_cnt)
+                df['hashtag_cnt'] = has_hashtags
+                df['hashtags'] = list_hashtags
+                df['new_text'] = text_no_hastags
+                df2 = pd.DataFrame({'text': text_no_hastags, 
+                                    'label': df['label'].tolist(),
+                                    'hashtag_cnt': has_hashtags,
+                                    'hashtags':list_hashtags
+                                    })
+                # df = df.append(df2, ignore_index=True)
+                if with_hastags:
+                    df2 = df2[df2['hashtag_cnt']>=1]
+                else:
+                    df2 = df2[df2['hashtag_cnt']==0]
+                # if with_hastags:
+                #     df2 = df2.drop(['hashtag_cnt'], axis=1).reset_index(drop=True)
+                #     df2.to_csv(os.path.join(save_folder_path, root_folder_name, folder_name, f'{type}.csv'), encoding='utf-8')
+                # else:
+                df2 = df2.drop(['hashtag_cnt'], axis=1).reset_index(drop=True)
+                df2.to_csv(os.path.join(save_folder_path, root_folder_name, folder_name, f'{type}.csv'), encoding='utf-8')
+                # print(df.head(10))
 
 class TweetDataset(Dataset):
     def __init__(self, data_path, fusion_type, low_resource, is_pilot, is_train):
@@ -163,3 +251,8 @@ def get_dataloaders_hashtags(train_path, val_path, test_path, batch_size, model)
     test_loader = torch.utils.data.DataLoader(test_tokenized, batch_size=batch_size, drop_last=True, shuffle=True)
 
     return train_loader, val_loader, test_loader
+
+if __name__ == "__main__":
+    save_folder = r'D:\1.Project\Master\HashTation-main\HashTation-main\data_generation_all'
+    data = OriginTweetDataset(r'D:\1.Project\Master\HashTation-main\HashTation-main\data\tweeteval-processed-full\emoji\val.csv')
+    data.parse_hashtags_to_new_files(r'D:\1.Project\Master\HashTation-main\HashTation-main\data\tweeteval-processed-full', save_folder)
