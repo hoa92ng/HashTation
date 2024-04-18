@@ -11,7 +11,8 @@ import os
 class OriginTweetDataset(Dataset):
     def __init__(self, data_path):
         self.df = pd.read_csv(data_path, lineterminator='\n')
-
+        self.tweets = []
+        self.hashtags = []
     def parse_hashtags(self):
         has_hashtags = []
         list_hashtags = []
@@ -93,22 +94,82 @@ class OriginTweetDataset(Dataset):
                 df2 = df2.drop(['hashtag_cnt'], axis=1).reset_index(drop=True)
                 df2.to_csv(os.path.join(save_folder_path, root_folder_name, folder_name, f'{type}.csv'), encoding='utf-8')
                 # print(df.head(10))
+    def fusion(self, fusion_type):
+        self.fused_topics = []
+        if fusion_type=="standard":
+            for tweet, hashtag in zip(self.tweets, self.hashtags):
+                tweet_split = tweet.split()
+                hashtag_split = hashtag.split(',')
+                for i in range(len(tweet_split)):
+                    if tweet_split[i] in hashtag_split:
+                        tweet_split[i] = '#'+tweet_split[i]
+                for i in range(len(hashtag_split)):
+                    hashtag_split[i] = '#'+hashtag_split[i]
+                for h in hashtag_split:
+                    if h not in tweet_split:
+                        tweet_split.append(h)
+                self.fused_topics.append(' '.join(tweet_split))
+        elif fusion_type=="start":
+            for tweet, hashtag in zip(self.tweets, self.hashtags):
+                tweet_split = tweet.split()
+                hashtag_split = hashtag.split(',')
+                for i in range(len(hashtag_split)):
+                    hashtag_split[i] = '#'+hashtag_split[i]
+                hashtag_split.extend(tweet_split)
+                self.fused_topics.append(' '.join(hashtag_split))
+        elif fusion_type=="end":
+            for tweet, hashtag in zip(self.tweets, self.hashtags):
+                tweet_split = tweet.split()
+                hashtag_split = hashtag.split(',')
+                for i in range(len(hashtag_split)):
+                    hashtag_split[i] = '#'+hashtag_split[i]
+                tweet_split.extend(hashtag_split)
+                self.fused_topics.append(' '.join(tweet_split))
+        self.tweets = self.fused_topics
+        return self.tweets
 
-
-    def concat_fused_hashtags(has_hashtags_file, gen_hashtags_file, fusion_type='standard', save_file):
+    def creat_hashtag_dataset(self, has_hashtags_folder, no_hashtags_folder, fusion_type='standard', save_folder="", datasets=['emoji']):
+      '''
+      Keep the raw tweet that have hashtags from the original file.
+      Process the no-hashtag tweet
+      '''
       types = ('test', 'train', 'val')
-      folders = glob(os.path.join(gen_hashtags_file, '*'))
-      root_folder_name = os.path.basename(folder_path)
-      os.makedirs(os.path.join(gen_hashtags_file, root_folder_name), exist_ok=True)
-      for folder in folders:
-        folder_name = os.path.basename(folder)
-        os.makedirs(os.path.join(save_folder_path, root_folder_name, folder_name), exist_ok=True)
+      for dataset in datasets:        
+        # extract the raw tweet
+        # folders = glob(os.path.join(has_hashtags_folder, '*'))
+        root_folder_name = os.path.basename(has_hashtags_folder)
+        os.makedirs(os.path.join(save_folder, f"{root_folder_name}_added_hashtag"), exist_ok=True)
+        # for folder in folders:
+        folder_name = dataset
+        folder = os.path.join(has_hashtags_folder, folder_name)
+        os.makedirs(os.path.join(save_folder, f"{root_folder_name}_added_hashtag", folder_name), exist_ok=True)
         for type in types:
-          file_name = os.path.join(folder, f'{type}.csv')
-          print(file_name)
-          df = pd.read_csv(file_name, lineterminator='\n')
-
-      for tweet, hashtag in zip(tweets, hashtags):
+          # /content/HashTation/data/tweeteval-processed-full
+          raw_file_name = os.path.join(folder, f'{type}.csv')
+          # /content/HashTation/data/tweeteval-processed-gen_no_hastags/hashtags_prediction
+          no_hashtags_file_name = os.path.join(no_hashtags_folder, f'{folder_name}_tam', f'{type}.csv')
+          print(raw_file_name, no_hashtags_file_name)
+          raw_df = pd.read_csv(raw_file_name, lineterminator='\n')
+          no_hashtag_df = pd.read_csv(no_hashtags_file_name, lineterminator='\n')
+          # process raw
+          has_hashtags = []
+          for s in raw_df['text'].tolist():            
+            s = s.replace('# ', '#')
+            hashtag_cnt = s.count('#')
+            if s.endswith('#'): hashtag_cnt=0
+            has_hashtags.append(hashtag_cnt)
+          raw_df['hashtag_cnt'] = has_hashtags
+          raw_df = raw_df[raw_df['hashtag_cnt']>=1]
+          self.tweets = no_hashtag_df.text.tolist()
+          self.hashtags = no_hashtag_df["Generated_Hashtags"].tolist()
+          gen_tweets = self.fusion(fusion_type=fusion_type)
+          df_temp = pd.DataFrame({'text': gen_tweets, 
+                                    'label': no_hashtag_df['label'].tolist()
+                                    })
+          raw_df = pd.concat([raw_df, df_temp], ignore_index=True)
+          raw_df.to_csv(os.path.join(save_folder, f"{root_folder_name}_added_hashtag", folder_name, f'{type}.csv'), encoding='utf-8')
+            # process no hashtags
+          print('Done and save file to ' + os.path.join(save_folder, f"{root_folder_name}_added_hashtag", folder_name, f'{type}.csv'))
 
 class TweetDataset(Dataset):
     def __init__(self, data_path, fusion_type, low_resource, is_pilot, is_train):
@@ -271,6 +332,11 @@ def get_dataloaders_hashtags(train_path, val_path, test_path, batch_size, model)
     return train_loader, val_loader, test_loader
 
 if __name__ == "__main__":
-    save_folder = 'data/tweeteval-processed-gen'
+    save_folder = 'data/tweeteval-processed-gen_no_hastags'
     data = OriginTweetDataset('data/tweeteval-processed-full/emoji/val.csv')
-    data.parse_hashtags_to_new_files(r'data/tweeteval-processed-full', save_folder)
+    # data.parse_hashtags_to_new_files(r'data/tweeteval-processed-full', save_folder, with_hastags=False)
+    data.creat_hashtag_dataset(has_hashtags_folder='/content/HashTation/data/tweeteval-processed-full',
+                      no_hashtags_folder='/content/HashTation/data/tweeteval-processed-gen_no_hastags/hashtags_prediction', 
+                      fusion_type='end', 
+                      save_folder='/content/HashTation/data/tweeteval-processed-gen', 
+                      datasets=['emoji'])
