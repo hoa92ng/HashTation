@@ -1,3 +1,4 @@
+from jax._src.tree_util import H
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -92,6 +93,11 @@ class OriginTweetDataset(Dataset):
                 df2 = df2.drop(['hashtag_cnt'], axis=1).reset_index(drop=True)
                 df2.to_csv(os.path.join(save_folder_path, root_folder_name, folder_name, f'{type}.csv'), encoding='utf-8')
                 # print(df.head(10))
+
+
+    def concat_fused_hashtags(has_hashtags_file, gen_hashtags_file, fusion_type='standard', save_file):
+      tweets
+      for tweet, hashtag in zip(tweets, hashtags):
 
 class TweetDataset(Dataset):
     def __init__(self, data_path, fusion_type, low_resource, is_pilot, is_train):
