@@ -58,6 +58,7 @@ def main(args):
         save_folder = f"/content/HashTation/data/tweeteval-processed-gen/hashtags_prediction/{dataset_name}"
         os.makedirs(save_folder, exist_ok=True)
         data.to_csv(f"{save_folder}/{split}.csv", index=False)
+        print(f'Done {save_folder}/{split}.csv')
 
 
 if __name__=="__main__":

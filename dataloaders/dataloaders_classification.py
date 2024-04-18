@@ -96,7 +96,18 @@ class OriginTweetDataset(Dataset):
 
 
     def concat_fused_hashtags(has_hashtags_file, gen_hashtags_file, fusion_type='standard', save_file):
-      tweets
+      types = ('test', 'train', 'val')
+      folders = glob(os.path.join(gen_hashtags_file, '*'))
+      root_folder_name = os.path.basename(folder_path)
+      os.makedirs(os.path.join(gen_hashtags_file, root_folder_name), exist_ok=True)
+      for folder in folders:
+        folder_name = os.path.basename(folder)
+        os.makedirs(os.path.join(save_folder_path, root_folder_name, folder_name), exist_ok=True)
+        for type in types:
+          file_name = os.path.join(folder, f'{type}.csv')
+          print(file_name)
+          df = pd.read_csv(file_name, lineterminator='\n')
+
       for tweet, hashtag in zip(tweets, hashtags):
 
 class TweetDataset(Dataset):
