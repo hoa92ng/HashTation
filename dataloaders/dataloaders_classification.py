@@ -194,8 +194,8 @@ class TweetDataset(Dataset):
         elif is_train:
             if low_resource:
                 sample_ratio = 0.1 if len(self.df) < 5000 else (0.05 if len(self.df) < 20000 else 0.01)
-                _, self.df = train_test_split(self.df, test_size=sample_ratio, stratify=self.df['label'])
-        self.df = self.df.dropna().reset_index(drop=True)
+                _, self.df = train_test_split(self.df, test_size=sample_ratio, stratify=self.df['label'])             
+        self.df = self.df.dropna(subset=['text']).reset_index(drop=True)
         self.tweets = self.df.text.tolist()
         self.labels = self.df.label.tolist()
         if "Generated_Hashtags" in self.df:
@@ -245,6 +245,19 @@ class TweetDataset(Dataset):
     
     def __getitem__(self, idx):
         return {"tweets": self.tweets[idx], "labels": self.labels[idx]}
+    
+    def map(self, tokenizer):
+      out_map = []
+      for idx, tweet in enumerate(self.tweets):
+        dataset_batch = {}
+        dataset_batch['tweets'] = tweet
+        dataset_batch['labels'] = self.labels[idx]
+        tokenized_inputs = tokenizer(tweet, max_length=128, padding="max_length", truncation=True, return_tensors='pt')
+        dataset_batch['input_ids'] = tokenized_inputs['input_ids'][0]
+        dataset_batch['attention_mask'] = tokenized_inputs['attention_mask'][0]
+        out_map.append(dataset_batch)
+      return out_map
+        
 
 def batch_bert_tokenize(dataset_batch, tokenizer): 
     tokenized_inputs = tokenizer(dataset_batch["tweets"], max_length=128, padding="max_length", truncation=True, return_tensors='pt')
@@ -270,15 +283,18 @@ def get_dataloaders_tweets(train_path, val_path, test_path, args):
         assert(model in ["timelms", "bertweet", "bert", "bert-large", "roberta", "roberta-large"])
 
     train = TweetDataset(train_path, fusion_type, args.low_resource, is_pilot=args.pilot, is_train=True)
-    train_tokenized = train.map(lambda batch: batch_bert_tokenize(batch, tokenizer))
+    # train_tokenized = train.map(lambda batch: batch_bert_tokenize(batch, tokenizer))
+    train_tokenized = train.map(tokenizer)
     train_loader = torch.utils.data.DataLoader(train_tokenized, batch_size=batch_size, drop_last=True, shuffle=True)
 
     val = TweetDataset(val_path, fusion_type, args.low_resource, is_pilot=args.pilot, is_train=False)
-    val_tokenized = val.map(lambda batch: batch_bert_tokenize(batch, tokenizer))
+    # val_tokenized = val.map(lambda batch: batch_bert_tokenize(batch, tokenizer))
+    val_tokenized = val.map(tokenizer)
     val_loader = torch.utils.data.DataLoader(val_tokenized, batch_size=batch_size, drop_last=True, shuffle=True)
 
     test = TweetDataset(test_path, fusion_type, args.low_resource, is_pilot=args.pilot, is_train=False)
-    test_tokenized = test.map(lambda batch: batch_bert_tokenize(batch, tokenizer))
+    # test_tokenized = test.map(lambda batch: batch_bert_tokenize(batch, tokenizer))
+    test_tokenized = test.map(tokenizer)
     test_loader = torch.utils.data.DataLoader(test_tokenized, batch_size=batch_size, drop_last=True, shuffle=True)
 
     return train_loader, val_loader, test_loader
