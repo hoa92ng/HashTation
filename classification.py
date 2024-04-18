@@ -74,10 +74,11 @@ def main(args):
     results_dict = classification_report(test_labels, test_preds, digits=4, output_dict=True)
     logging.info(results)
     logging.info(f"Final test result: {process_results(results_dict, args.dataset)}")
+    
     if args.out_file is not None:
         with open(args.out_file, 'a') as f:
             f.write(str(process_results(results_dict, args.dataset))+'\n')
-
+    torch.save({'timelms_clasification_state_dict': model.state_dict()}, args.save_path)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
@@ -88,9 +89,9 @@ if __name__=="__main__":
     parser.add_argument('--frozen', action='store_true')
     parser.add_argument('--low_resource', action='store_true')
     parser.add_argument('--pilot', type=str, default="none", choices=["with", "without", "none"])
-
-    parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--n_epochs', default=10, type=int)
+    parser.add_argument('--save_path', type=str)
+    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--n_epochs', default=5, type=int)
     parser.add_argument('--lr', default=5e-5, type=float)
     parser.add_argument('--logging', action='store_true')
     parser.add_argument('--out_file', type=str, default=None)
@@ -99,7 +100,7 @@ if __name__=="__main__":
     set_logger(args.logging)    
     logging.info(f"args: {args}")
 
-    tweetdir = "tweeteval-processed-full"
+    tweetdir = "/content/HashTation/data/tweeteval-processed-gen/tweeteval-processed-full_added_hashtag"
     if args.fusion_type=="none":
         args.train_path = f"{tweetdir}/{args.dataset}/train.csv"
         args.val_path = f"{tweetdir}/{args.dataset}/val.csv"
